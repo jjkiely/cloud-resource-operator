@@ -63,6 +63,33 @@ type PostgresReconciler struct {
 	providerList     []providers.PostgresProvider
 }
 
+// New returns a new reconcile.Reconciler
+func New(mgr manager.Manager) *PostgresReconciler {
+	client := mgr.GetClient()
+
+	logger := logrus.WithFields(logrus.Fields{"controller": "controller_postgres"})
+	providerList := []providers.PostgresProvider{openshift.NewOpenShiftPostgresProvider(client, cs, logger), aws.NewAWSPostgresProvider(client, logger)}
+	rp := resources.NewResourceProvider(client, mgr.GetScheme(), logger)
+	return &PostgresReconciler{
+		Client:           client,
+		scheme:           mgr.GetScheme(),
+		logger:           logger,
+		resourceProvider: rp,
+		providerList:     providerList,
+	}
+}
+
+func (r *PostgresReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&integreatlyv1alpha1.Postgres{}).
+		Watches(&source.Kind{Type: &v1alpha1.Postgres{}}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Kind{&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &v1alpha1.Postgres{},
+		}).
+		Complete(r)
+}
+
 // +kubebuilder:rbac:groups="",resources=pods;pods/exec;services;services/finalizers;endpoints;persistentVolumeclaims;events;configmaps;secrets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create,namespace=cloud-resource-operator
@@ -84,7 +111,7 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 
 	// Fetch the Postgres instance
 	instance := &v1alpha1.Postgres{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -98,7 +125,7 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 
 	stratMap, err := cfgMgr.GetStrategyMappingForDeploymentType(ctx, instance.Spec.Type)
 	if err != nil {
-		if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, croType.StatusDeploymentConfigNotFound.WrapError(err)); updateErr != nil {
+		if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, croType.StatusDeploymentConfigNotFound.WrapError(err)); updateErr != nil {
 			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{}, errorUtil.Wrapf(err, "failed to read deployment type config for deployment %s", instance.Spec.Type)
@@ -120,7 +147,7 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 		instance.Status.Strategy = strategyToUse
 		instance.Status.Provider = p.GetName()
 		if instance.Status.Strategy != strategyToUse || instance.Status.Provider != p.GetName() {
-			if err = r.client.Status().Update(ctx, instance); err != nil {
+			if err = r.Client.Status().Update(ctx, instance); err != nil {
 				return ctrl.Result{}, errorUtil.Wrapf(err, "failed to update instance %s in namespace %s", instance.Name, instance.Namespace)
 			}
 		}
@@ -129,14 +156,14 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 		if instance.DeletionTimestamp != nil {
 			msg, err := p.DeletePostgres(ctx, instance)
 			if err != nil {
-				if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
+				if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
 					return ctrl.Result{}, updateErr
 				}
 				return ctrl.Result{}, errorUtil.Wrapf(err, "failed to perform provider-specific storage deletion")
 			}
 
 			r.logger.Info("waiting on Postgres to successfully delete")
-			if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseDeleteInProgress, msg); err != nil {
+			if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseDeleteInProgress, msg); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -145,7 +172,7 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 		// handle skip create
 		if instance.Spec.SkipCreate {
 			r.logger.Info("skipCreate found, skipping postgres reconcile")
-			if err := resources.UpdatePhase(ctx, r.client, instance, croType.PhasePaused, croType.StatusSkipCreate); err != nil {
+			if err := resources.UpdatePhase(ctx, r.Client, instance, croType.PhasePaused, croType.StatusSkipCreate); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -155,7 +182,7 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 		ps, msg, err := p.CreatePostgres(ctx, instance)
 		if err != nil {
 			instance.Status.SecretRef = &croType.SecretRef{}
-			if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
+			if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
 				return ctrl.Result{}, updateErr
 			}
 			return ctrl.Result{}, err
@@ -163,7 +190,7 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 		if ps == nil {
 			r.logger.Info("secret data is still reconciling, postgres instance is nil")
 			instance.Status.SecretRef = &croType.SecretRef{}
-			if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseInProgress, msg); err != nil {
+			if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseInProgress, msg); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -179,21 +206,16 @@ func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error
 		instance.Status.SecretRef = instance.Spec.SecretRef
 		instance.Status.Strategy = strategyToUse
 		instance.Status.Provider = p.GetName()
-		if err = r.client.Status().Update(ctx, instance); err != nil {
+		if err = r.Client.Status().Update(ctx, instance); err != nil {
 			return ctrl.Result{}, errorUtil.Wrapf(err, "failed to update instance %s in namespace %s", instance.Name, instance.Namespace)
 		}
 		return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
 	}
 
 	// unsupported strategy
-	if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, croType.StatusUnsupportedType.WrapError(err)); err != nil {
+	if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, croType.StatusUnsupportedType.WrapError(err)); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, errorUtil.New(fmt.Sprintf("unsupported deployment strategy %s", stratMap.Postgres))
 }
 
-func (r *PostgresReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&integreatlyv1alpha1.Postgres{}).
-		Complete(r)
-}

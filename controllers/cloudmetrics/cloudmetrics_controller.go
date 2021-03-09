@@ -200,6 +200,47 @@ type CloudMetricsReconciler struct {
 	redisProviderList    []providers.RedisMetricsProvider
 }
 
+// New returns a new reconcile.Reconciler
+func New(mgr manager.Manager) *CloudMetricsReconciler {
+	c := mgr.GetClient()
+	logger := logrus.WithFields(logrus.Fields{"controller": "controller_cloudmetrics"})
+	postgresProviderList := []providers.PostgresMetricsProvider{aws.NewAWSPostgresMetricsProvider(c, logger)}
+	redisProviderList := []providers.RedisMetricsProvider{aws.NewAWSRedisMetricsProvider(c, logger)}
+
+	// we only wish to register metrics once when the new reconciler is created
+	// as the metrics we want to expose are known in advance we can register them all
+	// they will only be exposed if there is a value returned for the vector for a provider
+	registerGaugeVectorMetrics(logger)
+	return &CloudMetricsReconciler{
+		Client:               mgr.GetClient(),
+		scheme:               mgr.GetScheme(),
+		logger:               logger,
+		postgresProviderList: postgresProviderList,
+		redisProviderList:    redisProviderList,
+	}
+}
+
+func (r *CloudMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Set up a GenericEvent channel that will be used
+	// as the event source to trigger the controller's
+	// reconcile loop
+	events := make(chan event.GenericEvent)
+
+	// Send a generic event to the channel to kick
+	// off the first reconcile loop
+	go func() {
+		events <- event.GenericEvent{
+			Meta:   &integreatlyv1alpha1.Redis{},
+			Object: &integreatlyv1alpha1.Redis{},
+		}
+	}()
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&CloudMetricsReconciler{}).
+		Watches(&source.Channel{Source: events}, &handler.EnqueueRequestForObject{}).
+		Complete(r)
+}
+
 // +kubebuilder:rbac:groups="",resources=pods;pods/exec;services;services/finalizers;endpoints;persistentVolumeclaims;events;configmaps;secrets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create,namespace=cloud-resource-operator
@@ -221,7 +262,7 @@ func (r *CloudMetricsReconciler) Reconcile(request ctrl.Request) (ctrl.Result, e
 
 	// fetch all redis crs
 	redisInstances := &integreatlyv1alpha1.RedisList{}
-	err := r.client.List(ctx, redisInstances)
+	err := r.Client.List(ctx, redisInstances)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -338,8 +379,3 @@ func (r *CloudMetricsReconciler) setGaugeMetrics(gaugeMetrics []CroGaugeMetric, 
 	}
 }
 
-func (r *CloudMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&CloudMetricsReconciler{}).
-		Complete(r)
-}

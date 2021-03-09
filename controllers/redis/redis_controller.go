@@ -58,6 +58,33 @@ type RedisReconciler struct {
 	providerList     []providers.RedisProvider
 }
 
+// New returns a new reconcile.Reconciler
+func New(mgr manager.Manager) *RedisReconciler {
+	client := mgr.GetClient()
+	logger := logrus.WithFields(logrus.Fields{"controller": "controller_redis"})
+	providerList := []providers.RedisProvider{aws.NewAWSRedisProvider(client, logger), openshift.NewOpenShiftRedisProvider(client, logger)}
+	rp := resources.NewResourceProvider(client, mgr.GetScheme(), logger)
+	return &RedisReconciler{
+		Client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		logger:           logger,
+		resourceProvider: rp,
+		providerList:     providerList,
+	}
+}
+
+func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&integreatlyv1alpha1.Redis{}).
+		Watches(&source.Kind{Type: &v1alpha1.Redis{}}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &v1alpha1.Redis{},
+		}).
+		Complete(r)
+}
+
+
 // +kubebuilder:rbac:groups="",resources=pods;pods/exec;services;services/finalizers;endpoints;persistentVolumeclaims;events;configmaps;secrets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create,namespace=cloud-resource-operator
@@ -75,11 +102,11 @@ type RedisReconciler struct {
 func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	r.logger.Info("reconciling Redis")
 	ctx := context.TODO()
-	cfgMgr := providers.NewConfigManager(providers.DefaultProviderConfigMapName, request.Namespace, r.client)
+	cfgMgr := providers.NewConfigManager(providers.DefaultProviderConfigMapName, request.Namespace, r.Client)
 
 	// Fetch the Redis instance
 	instance := &v1alpha1.Redis{}
-	err := r.client.Get(ctx, request.NamespacedName, instance)
+	err := r.Client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -93,7 +120,7 @@ func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 
 	stratMap, err := cfgMgr.GetStrategyMappingForDeploymentType(ctx, instance.Spec.Type)
 	if err != nil {
-		if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, croType.StatusDeploymentConfigNotFound.WrapError(err)); updateErr != nil {
+		if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, croType.StatusDeploymentConfigNotFound.WrapError(err)); updateErr != nil {
 			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{}, errorUtil.Wrapf(err, "failed to read deployment type config for deployment %s", instance.Spec.Type)
@@ -115,7 +142,7 @@ func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		instance.Status.Strategy = strategyToUse
 		instance.Status.Provider = p.GetName()
 		if instance.Status.Strategy != strategyToUse || instance.Status.Provider != p.GetName() {
-			if err = r.client.Status().Update(ctx, instance); err != nil {
+			if err = r.Client.Status().Update(ctx, instance); err != nil {
 				return ctrl.Result{}, errorUtil.Wrapf(err, "failed to update instance %s in namespace %s", instance.Name, instance.Namespace)
 			}
 		}
@@ -124,14 +151,14 @@ func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		if instance.GetDeletionTimestamp() != nil {
 			msg, err := p.DeleteRedis(ctx, instance)
 			if err != nil {
-				if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
+				if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
 					return ctrl.Result{}, updateErr
 				}
 				return ctrl.Result{}, errorUtil.Wrapf(err, "failed to perform provider specific cluster deletion")
 			}
 
 			r.logger.Info("waiting for redis cluster to successfully delete")
-			if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseDeleteInProgress, msg); err != nil {
+			if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseDeleteInProgress, msg); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -140,7 +167,7 @@ func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		// handle skip create
 		if instance.Spec.SkipCreate {
 			r.logger.Info("skipCreate found, skipping redis reconcile")
-			if err := resources.UpdatePhase(ctx, r.client, instance, croType.PhasePaused, croType.StatusSkipCreate); err != nil {
+			if err := resources.UpdatePhase(ctx, r.Client, instance, croType.PhasePaused, croType.StatusSkipCreate); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -150,7 +177,7 @@ func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		redis, msg, err := p.CreateRedis(ctx, instance)
 		if err != nil {
 			instance.Status.SecretRef = &croType.SecretRef{}
-			if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
+			if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
 				return ctrl.Result{}, updateErr
 			}
 			return ctrl.Result{}, err
@@ -158,7 +185,7 @@ func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		if redis == nil {
 			instance.Status.SecretRef = &croType.SecretRef{}
 			r.logger.Info("waiting for redis cluster to become available")
-			if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseInProgress, msg); err != nil {
+			if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseInProgress, msg); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -175,21 +202,16 @@ func (r *RedisReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		instance.Status.SecretRef = instance.Spec.SecretRef
 		instance.Status.Strategy = strategyToUse
 		instance.Status.Provider = p.GetName()
-		if err = r.client.Status().Update(ctx, instance); err != nil {
+		if err = r.Client.Status().Update(ctx, instance); err != nil {
 			return ctrl.Result{}, errorUtil.Wrapf(err, "failed to update instance %s in namespace %s", instance.Name, instance.Namespace)
 		}
 		return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
 	}
 
 	// unsupported strategy
-	if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseInProgress, croType.StatusUnsupportedType.WrapError(err)); err != nil {
+	if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseInProgress, croType.StatusUnsupportedType.WrapError(err)); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, errorUtil.New(fmt.Sprintf("unsupported deployment strategy %s", stratMap.Redis))
 }
 
-func (r *RedisReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&integreatlyv1alpha1.Redis{}).
-		Complete(r)
-}

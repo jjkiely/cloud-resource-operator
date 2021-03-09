@@ -59,6 +59,28 @@ type BlobStorageReconciler struct {
 	providerList     []providers.BlobStorageProvider
 }
 
+// New returns a new reconcile.Reconciler
+func New(mgr manager.Manager) *BlobStorageReconciler {
+	client := mgr.GetClient()
+	logger := logrus.WithFields(logrus.Fields{"controller": "controller_blobstorage"})
+	providerList := []providers.BlobStorageProvider{aws.NewAWSBlobStorageProvider(client, logger), openshift.NewBlobStorageProvider(client, logger)}
+	rp := resources.NewResourceProvider(client, mgr.GetScheme(), logger)
+	return &BlobStorageReconciler{
+		Client:           client,
+		scheme:           mgr.GetScheme(),
+		logger:           logger,
+		resourceProvider: rp,
+		providerList:     providerList,
+	}
+}
+
+func (r *BlobStorageReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&integreatlyv1alpha1.BlobStorage{}).
+		Watches(&source.Kind{Type: &v1alpha1.BlobStorage{}}, &handler.EnqueueRequestForObject{}).
+		Complete(r)
+}
+
 // +kubebuilder:rbac:groups="",resources=pods;pods/exec;services;services/finalizers;endpoints;persistentVolumeclaims;events;configmaps;secrets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create,namespace=cloud-resource-operator
@@ -76,11 +98,11 @@ type BlobStorageReconciler struct {
 func (r *BlobStorageReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	r.logger.Info("reconciling BlobStorage")
 	ctx := context.TODO()
-	cfgMgr := providers.NewConfigManager(providers.DefaultProviderConfigMapName, request.Namespace, r.client)
+	cfgMgr := providers.NewConfigManager(providers.DefaultProviderConfigMapName, request.Namespace, r.Client)
 
 	// Fetch the BlobStorage instance
 	instance := &v1alpha1.BlobStorage{}
-	err := r.Get(ctx, request.NamespacedName, instance)
+	err := r.Client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -116,7 +138,7 @@ func (r *BlobStorageReconciler) Reconcile(request ctrl.Request) (ctrl.Result, er
 		instance.Status.Strategy = strategyToUse
 		instance.Status.Provider = p.GetName()
 		if instance.Status.Strategy != strategyToUse || instance.Status.Provider != p.GetName() {
-			if err = r.client.Status().Update(ctx, instance); err != nil {
+			if err = r.Client.Status().Update(ctx, instance); err != nil {
 				return ctrl.Result{}, errorUtil.Wrapf(err, "failed to update instance %s in namespace %s", instance.Name, instance.Namespace)
 			}
 		}
@@ -124,14 +146,14 @@ func (r *BlobStorageReconciler) Reconcile(request ctrl.Request) (ctrl.Result, er
 		if instance.GetDeletionTimestamp() != nil {
 			msg, err := p.DeleteStorage(ctx, instance)
 			if err != nil {
-				if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
+				if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
 					return ctrl.Result{}, updateErr
 				}
 				return ctrl.Result{}, errorUtil.Wrapf(err, "failed to perform provider-specific storage deletion")
 			}
 
 			r.logger.Info("waiting on blob storage to successfully delete")
-			if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseDeleteInProgress, msg.WrapError(err)); err != nil {
+			if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseDeleteInProgress, msg.WrapError(err)); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -140,7 +162,7 @@ func (r *BlobStorageReconciler) Reconcile(request ctrl.Request) (ctrl.Result, er
 		bsi, msg, err := p.CreateStorage(ctx, instance)
 		if err != nil {
 			instance.Status.SecretRef = &croType.SecretRef{}
-			if updateErr := resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
+			if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
 				return ctrl.Result{}, updateErr
 			}
 			return ctrl.Result{}, err
@@ -148,7 +170,7 @@ func (r *BlobStorageReconciler) Reconcile(request ctrl.Request) (ctrl.Result, er
 		if bsi == nil {
 			r.logger.Info("secret data is still reconciling, blob storage is nil")
 			instance.Status.SecretRef = &croType.SecretRef{}
-			if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseInProgress, msg); err != nil {
+			if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseInProgress, msg); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
@@ -163,21 +185,16 @@ func (r *BlobStorageReconciler) Reconcile(request ctrl.Request) (ctrl.Result, er
 		instance.Status.SecretRef = instance.Spec.SecretRef
 		instance.Status.Strategy = strategyToUse
 		instance.Status.Provider = p.GetName()
-		if err = r.client.Status().Update(ctx, instance); err != nil {
+		if err = r.Client.Status().Update(ctx, instance); err != nil {
 			return ctrl.Result{}, errorUtil.Wrapf(err, "failed to update instance %s in namespace %s", instance.Name, instance.Namespace)
 		}
 		return ctrl.Result{Requeue: true, RequeueAfter: p.GetReconcileTime(instance)}, nil
 	}
 
 	// unsupported strategy
-	if err = resources.UpdatePhase(ctx, r.client, instance, croType.PhaseFailed, croType.StatusUnsupportedType.WrapError(err)); err != nil {
+	if err = resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, croType.StatusUnsupportedType.WrapError(err)); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, errorUtil.New(fmt.Sprintf("unsupported deployment strategy %s", stratMap.BlobStorage))
 }
 
-func (r *BlobStorageReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&integreatlyv1alpha1.BlobStorage{}).
-		Complete(r)
-}

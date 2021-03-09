@@ -64,6 +64,30 @@ type RedisSnapshotReconciler struct {
 	CredentialManager croAws.CredentialManager
 }
 
+func New(mgr manager.Manager) *RedisSnapshotReconciler {
+	logger := logrus.WithFields(logrus.Fields{"controller": "controller_redis_snapshot"})
+	provider := croAws.NewAWSRedisSnapshotProvider(mgr.GetClient(), logger)
+	return &RedisSnapshotReconciler{
+		Client:            mgr.GetClient(),
+		scheme:            mgr.GetScheme(),
+		logger:            logger,
+		provider:          provider,
+		ConfigManager:     croAws.NewDefaultConfigMapConfigManager(mgr.GetClient()),
+		CredentialManager: croAws.NewCredentialMinterCredentialManager(mgr.GetClient()),
+	}
+}
+
+func (r *RedisSnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&integreatlyv1alpha1.RedisSnapshot{}).
+		Watches(&source.Kind{Type: &integreatlyv1alpha1.RedisSnapshot{}}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &integreatlyv1alpha1.RedisSnapshot{},
+		}).
+		Complete(r)
+}
+
 // +kubebuilder:rbac:groups="",resources=pods;pods/exec;services;services/finalizers;endpoints;persistentVolumeclaims;events;configmaps;secrets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs='*',namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create,namespace=cloud-resource-operator
@@ -84,7 +108,7 @@ func (r *RedisSnapshotReconciler) Reconcile(request ctrl.Request) (ctrl.Result, 
 
 	// Fetch the RedisSnapshot instance
 	instance := &integreatlyv1alpha1.RedisSnapshot{}
-	err := r.client.Get(ctx, request.NamespacedName, instance)
+	err := r.Client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -101,10 +125,10 @@ func (r *RedisSnapshotReconciler) Reconcile(request ctrl.Request) (ctrl.Result, 
 
 	// get redis cr
 	redisCr := &integreatlyv1alpha1.Redis{}
-	err = r.client.Get(ctx, types.NamespacedName{Name: instance.Spec.ResourceName, Namespace: instance.Namespace}, redisCr)
+	err = r.Client.Get(ctx, types.NamespacedName{Name: instance.Spec.ResourceName, Namespace: instance.Namespace}, redisCr)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to get redis cr : %s", err.Error())
-		if updateErr := resources.UpdateSnapshotPhase(ctx, r.client, instance, croType.PhaseFailed, croType.StatusMessage(errMsg)); updateErr != nil {
+		if updateErr := resources.UpdateSnapshotPhase(ctx, r.Client, instance, croType.PhaseFailed, croType.StatusMessage(errMsg)); updateErr != nil {
 			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{}, errorUtil.New(errMsg)
@@ -113,7 +137,7 @@ func (r *RedisSnapshotReconciler) Reconcile(request ctrl.Request) (ctrl.Result, 
 	// check redis cr deployment type is aws
 	if !r.provider.SupportsStrategy(redisCr.Status.Strategy) {
 		errMsg := fmt.Sprintf("the resource %s uses an unsupported provider strategy %s, only resources using the aws provider are valid", instance.Spec.ResourceName, redisCr.Status.Strategy)
-		if updateErr := resources.UpdateSnapshotPhase(ctx, r.client, instance, croType.PhaseFailed, croType.StatusMessage(errMsg)); updateErr != nil {
+		if updateErr := resources.UpdateSnapshotPhase(ctx, r.Client, instance, croType.PhaseFailed, croType.StatusMessage(errMsg)); updateErr != nil {
 			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{}, errorUtil.New(errMsg)
@@ -122,14 +146,14 @@ func (r *RedisSnapshotReconciler) Reconcile(request ctrl.Request) (ctrl.Result, 
 	if instance.DeletionTimestamp != nil {
 		msg, err := r.provider.DeleteRedisSnapshot(ctx, instance, redisCr)
 		if err != nil {
-			if updateErr := resources.UpdateSnapshotPhase(ctx, r.client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
+			if updateErr := resources.UpdateSnapshotPhase(ctx, r.Client, instance, croType.PhaseFailed, msg.WrapError(err)); updateErr != nil {
 				return ctrl.Result{}, updateErr
 			}
 			return ctrl.Result{}, errorUtil.Wrapf(err, "failed to delete redis snapshot")
 		}
 
 		r.logger.Info("waiting on redis snapshot to successfully delete")
-		if err = resources.UpdateSnapshotPhase(ctx, r.client, instance, croType.PhaseDeleteInProgress, msg); err != nil {
+		if err = resources.UpdateSnapshotPhase(ctx, r.Client, instance, croType.PhaseDeleteInProgress, msg); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{Requeue: true, RequeueAfter: r.provider.GetReconcileTime(instance)}, nil
@@ -146,7 +170,7 @@ func (r *RedisSnapshotReconciler) Reconcile(request ctrl.Request) (ctrl.Result, 
 
 	// error trying to create snapshot
 	if err != nil {
-		if updateErr := resources.UpdateSnapshotPhase(ctx, r.client, instance, croType.PhaseFailed, msg); updateErr != nil {
+		if updateErr := resources.UpdateSnapshotPhase(ctx, r.Client, instance, croType.PhaseFailed, msg); updateErr != nil {
 			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{}, err
@@ -154,14 +178,14 @@ func (r *RedisSnapshotReconciler) Reconcile(request ctrl.Request) (ctrl.Result, 
 
 	// no error but the snapshot doesn't exist yet
 	if snap == nil {
-		if updateErr := resources.UpdateSnapshotPhase(ctx, r.client, instance, croType.PhaseInProgress, msg); updateErr != nil {
+		if updateErr := resources.UpdateSnapshotPhase(ctx, r.Client, instance, croType.PhaseInProgress, msg); updateErr != nil {
 			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{Requeue: true, RequeueAfter: r.provider.GetReconcileTime(instance)}, nil
 	}
 
 	// no error, snapshot exists
-	if updateErr := resources.UpdateSnapshotPhase(ctx, r.client, instance, croType.PhaseComplete, msg); updateErr != nil {
+	if updateErr := resources.UpdateSnapshotPhase(ctx, r.Client, instance, croType.PhaseComplete, msg); updateErr != nil {
 		return ctrl.Result{}, updateErr
 	}
 	return ctrl.Result{Requeue: true, RequeueAfter: r.provider.GetReconcileTime(instance)}, nil
@@ -185,7 +209,7 @@ func (r *RedisSnapshotReconciler) exposeRedisSnapshotMetrics(ctx context.Context
 
 	// get Cluster Id
 	logrus.Info("setting redis snapshot information metric")
-	clusterID, err := resources.GetClusterID(ctx, r.client)
+	clusterID, err := resources.GetClusterID(ctx, r.Client)
 	if err != nil {
 		logrus.Errorf("failed to get cluster id while exposing information metric for %v", snapshotName)
 		return
@@ -202,8 +226,3 @@ func (r *RedisSnapshotReconciler) exposeRedisSnapshotMetrics(ctx context.Context
 	}
 }
 
-func (r *RedisSnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&integreatlyv1alpha1.RedisSnapshot{}).
-		Complete(r)
-}
