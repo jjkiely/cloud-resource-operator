@@ -1,0 +1,208 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - blobstorages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - blobstorages/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - postgres
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - postgres/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - postgressnapshots
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - postgressnapshots/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - redis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - redis/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - redissnapshots
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - integreatly.integreatly.org
+  resources:
+  - redissnapshots/status
+  verbs:
+  - get
+  - patch
+  - update
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: manager-role
+  namespace: cloud-resource-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - persistentVolumeclaims
+  - pods
+  - pods/exec
+  - secrets
+  - services
+  - services/finalizers
+  verbs:
+  - '''*'''
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resources:
+  - '''*'''
+  verbs:
+  - '''*'''
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - '''*'''
+- apiGroups:
+  - cloud-resource-operator
+  resources:
+  - deployments/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cloudcredential.openshift.io
+  resources:
+  - credentialsrequests
+  verbs:
+  - '''*'''
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - '''*'''
+  - authentications
+  - builds
+  - clusteroperators
+  - featuregates
+  - infrastructures
+  - ingresses
+  - networks
+  - schedulers
+  verbs:
+  - '''*'''
+- apiGroups:
+  - integreatly
+  resources:
+  - '''*'''
+  verbs:
+  - '''*'''
+- apiGroups:
+  - integreatly.org
+  resources:
+  - '''*'''
+  - postgres
+  - postgressnapshots
+  - redis
+  - redissnapshots
+  - smtpcredentialset
+  verbs:
+  - '''*'''
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - prometheusrules
+  verbs:
+  - '''*'''
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - create
+  - get

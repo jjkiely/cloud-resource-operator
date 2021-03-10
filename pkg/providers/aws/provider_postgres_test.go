@@ -1127,7 +1127,7 @@ func TestAWSPostgresProvider_GetReconcileTime(t *testing.T) {
 			name: "test short reconcile when the cr is not complete",
 			args: args{
 				p: &v1alpha1.Postgres{
-					Status: v1alpha1.PostgresStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: croType.PhaseInProgress,
 					},
 				},
@@ -1138,7 +1138,7 @@ func TestAWSPostgresProvider_GetReconcileTime(t *testing.T) {
 			name: "test default reconcile time when the cr is complete",
 			args: args{
 				p: &v1alpha1.Postgres{
-					Status: v1alpha1.PostgresStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: croType.PhaseComplete,
 					},
 				},

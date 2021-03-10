@@ -15,6 +15,7 @@ import (
 	croApis "github.com/integr8ly/cloud-resource-operator/apis"
 	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
 	"github.com/integr8ly/cloud-resource-operator/pkg/providers"
+	croType "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -793,7 +794,7 @@ func TestAWSRedisProvider_GetReconcileTime(t *testing.T) {
 			name: "test short reconcile when the cr is not complete",
 			args: args{
 				r: &v1alpha1.Redis{
-					Status: v1alpha1.RedisStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseInProgress,
 					},
 				},
@@ -804,7 +805,7 @@ func TestAWSRedisProvider_GetReconcileTime(t *testing.T) {
 			name: "test default reconcile time when the cr is complete",
 			args: args{
 				r: &v1alpha1.Redis{
-					Status: v1alpha1.RedisStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseComplete,
 					},
 				},

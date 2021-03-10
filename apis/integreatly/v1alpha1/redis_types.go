@@ -17,30 +17,21 @@ limitations under the License.
 package v1alpha1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// RedisSpec defines the desired state of Redis
-type RedisSpec types.ResourceTypeSpec
-
-
-// RedisStatus defines the observed state of Redis
-type RedisStatus types.ResourceTypeStatus
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:path=redis,scope=Namespaced
 
 // Redis is the Schema for the redis API
 type Redis struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisSpec   `json:"spec,omitempty"`
-	Status RedisStatus `json:"status,omitempty"`
+	Spec   types.ResourceTypeSpec   `json:"spec,omitempty"`
+	Status types.ResourceTypeStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

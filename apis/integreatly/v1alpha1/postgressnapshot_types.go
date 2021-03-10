@@ -17,12 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // PostgresSnapshotSpec defines the desired state of PostgresSnapshot
 type PostgresSnapshotSpec struct {
@@ -32,11 +29,9 @@ type PostgresSnapshotSpec struct {
 	ResourceName string `json:"resourceName"`
 }
 
-// PostgresSnapshotStatus defines the observed state of PostgresSnapshot
-type PostgresSnapshotStatus types.ResourceTypeSnapshotStatus
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:path=postgressnapshots,scope=Namespaced
 
 // PostgresSnapshot is the Schema for the postgressnapshots API
 type PostgresSnapshot struct {
@@ -44,7 +39,7 @@ type PostgresSnapshot struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   PostgresSnapshotSpec   `json:"spec,omitempty"`
-	Status PostgresSnapshotStatus `json:"status,omitempty"`
+	Status types.ResourceTypeSnapshotStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

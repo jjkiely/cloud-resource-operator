@@ -76,7 +76,7 @@ func TestReconcileBlobStorage(t *testing.T) {
 						"productName": "test",
 					},
 				},
-				Spec: v1alpha1.BlobStorageSpec{
+				Spec: croType.ResourceTypeSpec{
 					Type: "managed",
 					Tier: "production",
 					SecretRef: &croType.SecretRef{
@@ -115,7 +115,7 @@ func TestReconcileBlobStorage(t *testing.T) {
 						"cro": "test",
 					},
 				},
-				Spec: v1alpha1.BlobStorageSpec{
+				Spec: croType.ResourceTypeSpec{
 					Type: "managed",
 					Tier: "production",
 					SecretRef: &croType.SecretRef{
@@ -207,7 +207,7 @@ func TestReconcilePostgres(t *testing.T) {
 						"productName": "test",
 					},
 				},
-				Spec: v1alpha1.PostgresSpec{
+				Spec: croType.ResourceTypeSpec{
 					Type: "managed",
 					Tier: "production",
 					SecretRef: &croType.SecretRef{
@@ -246,7 +246,7 @@ func TestReconcilePostgres(t *testing.T) {
 						"cro": "test",
 					},
 				},
-				Spec: v1alpha1.PostgresSpec{
+				Spec: croType.ResourceTypeSpec{
 					Type: "managed",
 					Tier: "production",
 					SecretRef: &croType.SecretRef{
@@ -337,7 +337,7 @@ func TestReconcileRedis(t *testing.T) {
 						"productName": "test",
 					},
 				},
-				Spec: v1alpha1.RedisSpec{
+				Spec: croType.ResourceTypeSpec{
 					Type: "managed",
 					Tier: "production",
 					SecretRef: &croType.SecretRef{
@@ -376,7 +376,7 @@ func TestReconcileRedis(t *testing.T) {
 						"cro": "test",
 					},
 				},
-				Spec: v1alpha1.RedisSpec{
+				Spec: croType.ResourceTypeSpec{
 					Type: "managed",
 					Tier: "production",
 					SecretRef: &croType.SecretRef{

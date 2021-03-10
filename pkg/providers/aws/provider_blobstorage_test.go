@@ -21,7 +21,7 @@ import (
 	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	croType "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -303,7 +303,7 @@ func TestBlobStorageProvider_GetReconcileTime(t *testing.T) {
 			name: "test short reconcile when the cr is not complete",
 			args: args{
 				b: &v1alpha1.BlobStorage{
-					Status: v1alpha1.BlobStorageStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseInProgress,
 					},
 				},
@@ -314,7 +314,7 @@ func TestBlobStorageProvider_GetReconcileTime(t *testing.T) {
 			name: "test default reconcile time when the cr is complete",
 			args: args{
 				b: &v1alpha1.BlobStorage{
-					Status: v1alpha1.BlobStorageStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseComplete,
 					},
 				},

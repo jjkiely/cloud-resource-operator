@@ -8,6 +8,9 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:skip
+
+
 
 // Infrastructure holds cluster-wide information about Infrastructure.  The canonical name is `cluster`
 type Infrastructure struct {

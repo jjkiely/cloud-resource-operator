@@ -29,11 +29,11 @@ import (
 
 	integreatlyv1alpha1 "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1"
 	blobstorageController "github.com/integr8ly/cloud-resource-operator/controllers/blobstorage"
+	cloudmetricsController "github.com/integr8ly/cloud-resource-operator/controllers/cloudmetrics"
 	postgresController "github.com/integr8ly/cloud-resource-operator/controllers/postgres"
 	postgressnapshotController "github.com/integr8ly/cloud-resource-operator/controllers/postgressnapshot"
 	redisController "github.com/integr8ly/cloud-resource-operator/controllers/redis"
 	redissnapshotController "github.com/integr8ly/cloud-resource-operator/controllers/redissnapshot"
-	cloudmetricsController "github.com/integr8ly/cloud-resource-operator/controllers/cloudmetrics"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -106,7 +106,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Cloudmetrics")
 		os.Exit(1)
 	}
-	
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

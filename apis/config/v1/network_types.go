@@ -5,6 +5,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:skip
 
 // Network holds cluster-wide information about Network.  The canonical name is `cluster`
 // TODO this object is an example of a possible grouping and is subject to change or removal

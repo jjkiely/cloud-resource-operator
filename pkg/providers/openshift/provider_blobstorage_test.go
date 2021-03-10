@@ -15,6 +15,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	croType "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
 )
 
 func TestBlobStorageProvider_CreateStorage(t *testing.T) {
@@ -46,13 +47,13 @@ func TestBlobStorageProvider_CreateStorage(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Spec: v1alpha1.BlobStorageSpec{
+					Spec: croType.ResourceTypeSpec{
 						SecretRef: &types.SecretRef{
 							Name:      "test-sec",
 							Namespace: "",
 						},
 					},
-					Status: v1alpha1.BlobStorageStatus{},
+					Status: croType.ResourceTypeStatus{},
 				},
 			},
 			want: &providers.BlobStorageInstance{
@@ -92,13 +93,13 @@ func TestBlobStorageProvider_CreateStorage(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Spec: v1alpha1.BlobStorageSpec{
+					Spec: croType.ResourceTypeSpec{
 						SecretRef: &types.SecretRef{
 							Name:      "test-sec",
 							Namespace: "",
 						},
 					},
-					Status: v1alpha1.BlobStorageStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseComplete,
 						SecretRef: &types.SecretRef{
 							Name:      "test",
@@ -142,13 +143,13 @@ func TestBlobStorageProvider_CreateStorage(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Spec: v1alpha1.BlobStorageSpec{
+					Spec: croType.ResourceTypeSpec{
 						SecretRef: &types.SecretRef{
 							Name:      "test-sec",
 							Namespace: "",
 						},
 					},
-					Status: v1alpha1.BlobStorageStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseComplete,
 						SecretRef: &types.SecretRef{
 							Name:      "test",

@@ -86,7 +86,7 @@ func buildTestPostgresSnapshotCr() *v1alpha1.PostgresSnapshot {
 			Name:      "test",
 			Namespace: "test",
 		},
-		Status: v1alpha1.PostgresSnapshotStatus{
+		Status: croType.ResourceTypeSnapshotStatus{
 			SnapshotID: "test-identifier",
 		},
 	}
@@ -288,7 +288,7 @@ func TestAWSPostgresSnapshotProvider_createPostgresSnapshot(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Status: v1alpha1.PostgresStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: croType.PhaseInProgress,
 					},
 				},
@@ -319,7 +319,7 @@ func TestAWSPostgresSnapshotProvider_createPostgresSnapshot(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Status: v1alpha1.PostgresStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: croType.PhaseDeleteInProgress,
 					},
 				},
@@ -416,7 +416,7 @@ func TestAWSPostgresSnapshotProvider_deletePostgresSnapshot(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Status: v1alpha1.PostgresSnapshotStatus{
+					Status: croType.ResourceTypeSnapshotStatus{
 						SnapshotID: testTimestampedIdentifier,
 					},
 				},
@@ -515,7 +515,7 @@ func TestAWSPostgresSnapshotProvider_deletePostgresSnapshot(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Status: v1alpha1.PostgresSnapshotStatus{
+					Status: croType.ResourceTypeSnapshotStatus{
 						SnapshotID: testTimestampedIdentifier,
 					},
 				},

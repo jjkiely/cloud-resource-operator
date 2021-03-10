@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
+	croType "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -48,8 +48,8 @@ func buildTestRedisCR() *v1alpha1.Redis {
 			Name:      testRedisName,
 			Namespace: testRedisNamespace,
 		},
-		Spec:   v1alpha1.RedisSpec{},
-		Status: v1alpha1.RedisStatus{},
+		Spec:   croType.ResourceTypeSpec{},
+		Status: croType.ResourceTypeStatus{},
 	}
 }
 
@@ -272,7 +272,7 @@ func TestOpenShiftRedisProvider_GetReconcileTime(t *testing.T) {
 			name: "test short reconcile when the cr is not complete",
 			args: args{
 				r: &v1alpha1.Redis{
-					Status: v1alpha1.RedisStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseInProgress,
 					},
 				},
@@ -283,7 +283,7 @@ func TestOpenShiftRedisProvider_GetReconcileTime(t *testing.T) {
 			name: "test default reconcile time when the cr is complete",
 			args: args{
 				r: &v1alpha1.Redis{
-					Status: v1alpha1.RedisStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: types.PhaseComplete,
 					},
 				},

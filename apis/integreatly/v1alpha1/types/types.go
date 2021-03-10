@@ -16,14 +16,11 @@ var (
 	StatusSkipCreate               StatusMessage = "skipping create or update for maintenance"
 )
 
-// SecretRef Represents a namespace-scoped Secret
 type SecretRef struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
 }
-
-// ResourceTypeSpec Represents the basic information required to provision a resource type
-// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
 type ResourceTypeSpec struct {
 	Type       string     `json:"type"`
 	Tier       string     `json:"tier"`
@@ -41,9 +38,7 @@ func (sm StatusMessage) WrapError(err error) StatusMessage {
 	}
 	return StatusMessage(fmt.Sprintf("%s: %s", sm, err.Error()))
 }
-
-// ResourceTypeStatus Represents the basic status information provided by a resource provider
-// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
 type ResourceTypeStatus struct {
 	Strategy  string        `json:"strategy,omitempty"`
 	Provider  string        `json:"provider,omitempty"`
@@ -52,8 +47,6 @@ type ResourceTypeStatus struct {
 	Message   StatusMessage `json:"message,omitempty"`
 }
 
-// ResourceTypeSnapshotStatus Represents the basic status information provided by snapshot controller
-// +k8s:openapi-gen=true
 type ResourceTypeSnapshotStatus struct {
 	SnapshotID string        `json:"snapshotID,omitempty"`
 	Phase      StatusPhase   `json:"phase,omitempty"`

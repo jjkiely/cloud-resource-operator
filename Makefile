@@ -1,3 +1,91 @@
+IMAGE_REG=quay.io
+IMAGE_ORG=mstoklus
+IMAGE_NAME=cloud-resource-operator
+MANIFEST_NAME=cloud-resources
+NAMESPACE=cloud-resource-operator
+PREV_VERSION=0.22.3
+VERSION=0.23.0
+COMPILE_TARGET=./tmp/_output/bin/$(IMAGE_NAME)
+
+SHELL=/bin/bash
+
+# If the _correct_ version of operator-sdk is on the path, use that (faster);
+# otherwise use it through "go run" (slower but will always work and will use correct version)
+OPERATOR_SDK_VERSION=1.2.0
+ifeq ($(shell operator-sdk version 2> /dev/null | sed -e 's/", .*/"/' -e 's/.* //'), "v$(OPERATOR_SDK_VERSION)")
+	OPERATOR_SDK ?= operator-sdk
+else
+	OPERATOR_SDK ?= go run github.com/operator-framework/operator-sdk/cmd/operator-sdk
+endif
+
+AUTH_TOKEN=$(shell curl -sH "Content-Type: application/json" -XPOST https://quay.io/cnr/api/v1/users/login -d '{"user": {"username": "$(QUAY_USERNAME)", "password": "${QUAY_PASSWORD}"}}' | jq -r '.token')
+
+OS := $(shell uname)
+ifeq ($(OS),Darwin)
+	OPERATOR_SDK_OS := apple-darwin
+else
+	OPERATOR_SDK_OS := linux-gnu
+endif
+
+.PHONY: build
+build:
+	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o=$(COMPILE_TARGET) ./main.go
+
+.PHONY: run
+run:
+	RECTIME=30 WATCH_NAMESPACE=$(NAMESPACE) go run ./main.go
+
+PHONY: setup/service_account
+setup/service_account: kustomize
+	@-oc new-project $(NAMESPACE)
+	@oc project $(NAMESPACE)
+	@-oc create -f config/rbac/service_account.yaml -n $(NAMESPACE)
+	@$(KUSTOMIZE) build config/rbac-cloud-resource-operator | oc replace --force -f -	
+	@oc login --token=$(shell oc serviceaccounts get-token cloud-resource-operator -n ${NAMESPACE}) --server=$(shell sh -c "oc cluster-info | grep -Eo 'https?://[-a-zA-Z0-9\.:]*'") --kubeconfig=TMP_SA_KUBECONFIG --insecure-skip-tls-verify=true
+
+
+.PHONY: code/run/service_account
+code/run/service_account: #setup/service_account
+	@oc login --token=$(shell oc serviceaccounts get-token cloud-resource-operator -n ${NAMESPACE})
+	WATCH_NAMESPACE=$(NAMESPACE) go run ./main.go
+
+
+
+
+.PHONY: cluster/prepare/crd
+cluster/prepare/crd: kustomize
+	$(KUSTOMIZE) build config/crd | oc apply -f -
+
+.PHONY: code/check
+code/check:
+	@diff -u <(echo -n) <(gofmt -d `find . -type f -name '*.go' -not -path "./vendor/*"`)
+
+
+.PHONY: vendor/fix
+vendor/fix:
+	go mod tidy
+	go mod vendor
+
+.PHONY: vendor/check
+vendor/check: vendor/fix
+	git diff --exit-code vendor/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Current Operator version
 VERSION ?= 0.0.1
 # Default bundle image tag
@@ -36,9 +124,6 @@ test: generate fmt vet manifests
 manager: generate fmt vet
 	go build -o bin/manager main.go
 
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
-	go run ./main.go
 
 # Install CRDs into a cluster
 install: manifests kustomize
@@ -122,11 +207,3 @@ bundle: manifests kustomize
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-.PHONY: vendor/fix
-vendor/fix:
-	go mod tidy
-	go mod vendor
-
-.PHONY: vendor/check
-vendor/check: vendor/fix
-	git diff --exit-code vendor/

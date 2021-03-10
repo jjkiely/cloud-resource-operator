@@ -32,7 +32,7 @@ func buildTestRedisSnapshotCR() *v1alpha1.RedisSnapshot {
 			Name:      "test",
 			Namespace: "test",
 		},
-		Status: v1alpha1.RedisSnapshotStatus{
+		Status: croType.ResourceTypeSnapshotStatus{
 			SnapshotID: "test-identifier",
 		},
 	}
@@ -266,7 +266,7 @@ func TestAWSRedisSnapshotProvider_createRedisSnapshot(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Status: v1alpha1.RedisStatus{
+					Status: croType.ResourceTypeStatus{
 						Phase: croType.PhaseInProgress,
 					},
 				},
@@ -366,7 +366,7 @@ func TestAWSRedisSnapshotProvider_deleteRedisSnapshot(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Status: v1alpha1.RedisSnapshotStatus{
+					Status: croType.ResourceTypeSnapshotStatus{
 						SnapshotID: testTimestampedIdentifier,
 					},
 				},
@@ -465,7 +465,7 @@ func TestAWSRedisSnapshotProvider_deleteRedisSnapshot(t *testing.T) {
 						Name:      "test",
 						Namespace: "test",
 					},
-					Status: v1alpha1.RedisSnapshotStatus{
+					Status: croType.ResourceTypeSnapshotStatus{
 						SnapshotID: testTimestampedIdentifier,
 					},
 				},

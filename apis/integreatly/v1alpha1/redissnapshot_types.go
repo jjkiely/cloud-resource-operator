@@ -17,12 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // RedisSnapshotSpec defines the desired state of RedisSnapshot
 type RedisSnapshotSpec struct {
@@ -33,11 +30,9 @@ type RedisSnapshotSpec struct {
 	ResourceName string `json:"resourceName"`
 }
 
-// RedisSnapshotStatus defines the observed state of RedisSnapshot
-type RedisSnapshotStatus types.ResourceTypeSnapshotStatus
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:path=redissnapshots,scope=Namespaced
 
 // RedisSnapshot is the Schema for the redissnapshots API
 type RedisSnapshot struct {
@@ -45,7 +40,7 @@ type RedisSnapshot struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   RedisSnapshotSpec   `json:"spec,omitempty"`
-	Status RedisSnapshotStatus `json:"status,omitempty"`
+	Status types.ResourceTypeSnapshotStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

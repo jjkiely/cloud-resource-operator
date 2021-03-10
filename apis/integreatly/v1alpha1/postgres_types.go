@@ -17,29 +17,21 @@ limitations under the License.
 package v1alpha1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// PostgresSpec defines the desired state of Postgres
-type PostgresSpec types.ResourceTypeSpec
-
-// PostgresStatus defines the observed state of Postgres
-type PostgresStatus types.ResourceTypeStatus
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:path=postgres,scope=Namespaced
 
 // Postgres is the Schema for the postgres API
 type Postgres struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PostgresSpec   `json:"spec,omitempty"`
-	Status PostgresStatus `json:"status,omitempty"`
+	Spec   types.ResourceTypeSpec   `json:"spec,omitempty"`
+	Status types.ResourceTypeStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
