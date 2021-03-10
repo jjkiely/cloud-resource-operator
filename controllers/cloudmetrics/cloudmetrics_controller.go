@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
-	integreatlyv1alpha1 "github.com/integr8ly/cloud-resource-operator/pkg/apis/integreatly/v1alpha1"
+	integreatlyv1alpha1 "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -236,7 +236,8 @@ func (r *CloudMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}()
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&CloudMetricsReconciler{}).
+		For(&integreatlyv1alpha1.Redis{}).
+		For(&integreatlyv1alpha1.Postgres{}).
 		Watches(&source.Channel{Source: events}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
@@ -301,7 +302,7 @@ func (r *CloudMetricsReconciler) Reconcile(request ctrl.Request) (ctrl.Result, e
 
 	// Fetch all postgres crs
 	postgresInstances := &integreatlyv1alpha1.PostgresList{}
-	err = r.client.List(ctx, postgresInstances)
+	err = r.Client.List(ctx, postgresInstances)
 	if err != nil {
 		r.logger.Error(err)
 	}

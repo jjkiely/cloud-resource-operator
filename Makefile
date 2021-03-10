@@ -121,3 +121,12 @@ bundle: manifests kustomize
 .PHONY: bundle-build
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: vendor/fix
+vendor/fix:
+	go mod tidy
+	go mod vendor
+
+.PHONY: vendor/check
+vendor/check: vendor/fix
+	git diff --exit-code vendor/

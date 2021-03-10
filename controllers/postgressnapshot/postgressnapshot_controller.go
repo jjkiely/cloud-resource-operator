@@ -22,7 +22,7 @@ import (
 
 	"github.com/integr8ly/cloud-resource-operator/pkg/providers"
 
-	integreatlyv1alpha1 "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
+	integreatlyv1alpha1 "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1"
 	croType "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
 	croAws "github.com/integr8ly/cloud-resource-operator/pkg/providers/aws"
 	"github.com/integr8ly/cloud-resource-operator/pkg/resources"
@@ -44,8 +44,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
-	integreatlyv1alpha1 "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1"
+const (
+	postgresProviderName = "aws-rds"
 )
 
 // PostgresSnapshotReconciler reconciles a PostgresSnapshot object

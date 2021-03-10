@@ -31,7 +31,7 @@ import (
 	"github.com/integr8ly/cloud-resource-operator/pkg/providers"
 	"github.com/sirupsen/logrus"
 
-	"github.com/integr8ly/cloud-resource-operator/apis/v1alpha1"
+	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1"
 	errorUtil "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
@@ -64,11 +64,16 @@ type PostgresReconciler struct {
 }
 
 // New returns a new reconcile.Reconciler
-func New(mgr manager.Manager) *PostgresReconciler {
+func New(mgr manager.Manager) (*PostgresReconciler, error) {
 	client := mgr.GetClient()
 
+	clientSet, err := resources.GetK8Client()
+	if err != nil {
+		return nil, errorUtil.Wrap(err, "failed to build client set")
+	}
+
 	logger := logrus.WithFields(logrus.Fields{"controller": "controller_postgres"})
-	providerList := []providers.PostgresProvider{openshift.NewOpenShiftPostgresProvider(client, cs, logger), aws.NewAWSPostgresProvider(client, logger)}
+	providerList := []providers.PostgresProvider{openshift.NewOpenShiftPostgresProvider(client, clientSet, logger), aws.NewAWSPostgresProvider(client, logger)}
 	rp := resources.NewResourceProvider(client, mgr.GetScheme(), logger)
 	return &PostgresReconciler{
 		Client:           client,
@@ -76,14 +81,14 @@ func New(mgr manager.Manager) *PostgresReconciler {
 		logger:           logger,
 		resourceProvider: rp,
 		providerList:     providerList,
-	}
+	}, nil
 }
 
 func (r *PostgresReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&integreatlyv1alpha1.Postgres{}).
 		Watches(&source.Kind{Type: &v1alpha1.Postgres{}}, &handler.EnqueueRequestForObject{}).
-		Watches(&source.Kind{&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+		Watches(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
 			IsController: true,
 			OwnerType:    &v1alpha1.Postgres{},
 		}).
@@ -107,7 +112,7 @@ func (r *PostgresReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *PostgresReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	r.logger.Info("reconciling Postgres")
 	ctx := context.TODO()
-	cfgMgr := providers.NewConfigManager(providers.DefaultProviderConfigMapName, request.Namespace, r.client)
+	cfgMgr := providers.NewConfigManager(providers.DefaultProviderConfigMapName, request.Namespace, r.Client)
 
 	// Fetch the Postgres instance
 	instance := &v1alpha1.Postgres{}

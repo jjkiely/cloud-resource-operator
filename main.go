@@ -72,14 +72,8 @@ func main() {
 		os.Exit(1)
 	}
 
-
-	blobstorageCtrl, err := blobstorageController.New(mgr)
-	if err != nil {
+	if err = blobstorageController.New(mgr).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Blobstorage")
-		os.Exit(1)
-	}
-	if err = blobstorageCtrl.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to setup controller", "controller", "BlobStorage")
 		os.Exit(1)
 	}
 
@@ -93,43 +87,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	postgressnapshotCtrl, err := postgressnapshotController.New(mgr)
-	if err != nil {
+	if err = postgressnapshotController.New(mgr).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Postgressnapshot")
 		os.Exit(1)
 	}
-	if err = postgressnapshotCtrl.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to setup controller", "controller", "Postgressnapshot")
-		os.Exit(1)
-	}
 
-	redisCtrl, err := redisController.New(mgr)
-	if err != nil {
+	if err = redisController.New(mgr).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redis")
 		os.Exit(1)
 	}
-	if err = redisCtrl.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to setup controller", "controller", "Redis")
-		os.Exit(1)
-	}
 
-	redissnapshotCtrl, err := redissnapshotController.New(mgr)
-	if err != nil {
+	if err = redissnapshotController.New(mgr).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redissnapshot")
 		os.Exit(1)
 	}
-	if err = redissnapshotCtrl.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to setup controller", "controller", "Redissnapshot")
-		os.Exit(1)
-	}
 
-	cloudmetricsCtrl, err := cloudmetricsController.New(mgr)
-	if err != nil {
+	if err = cloudmetricsController.New(mgr).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cloudmetrics")
-		os.Exit(1)
-	}
-	if err = cloudmetricsCtrl.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to setup controller", "controller", "Cloudmetrics")
 		os.Exit(1)
 	}
 	

@@ -116,7 +116,7 @@ func (r *BlobStorageReconciler) Reconcile(request ctrl.Request) (ctrl.Result, er
 
 	stratMap, err := cfgMgr.GetStrategyMappingForDeploymentType(ctx, instance.Spec.Type)
 	if err != nil {
-		if updateErr := resources.UpdatePhase(ctx, client.client, instance, croType.PhaseFailed, croType.StatusDeploymentConfigNotFound.WrapError(err)); updateErr != nil {
+		if updateErr := resources.UpdatePhase(ctx, r.Client, instance, croType.PhaseFailed, croType.StatusDeploymentConfigNotFound.WrapError(err)); updateErr != nil {
 			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{}, err
