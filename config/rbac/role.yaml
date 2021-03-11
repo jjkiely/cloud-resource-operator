@@ -7,7 +7,23 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - integreatly.integreatly.org
+  - ""
+  resources:
+  - configmaps
+  - persistentvolumes
+  verbs:
+  - '*'
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - infrastructures
+  - networks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - integreatly.org
   resources:
   - blobstorages
   verbs:
@@ -19,7 +35,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - integreatly.integreatly.org
+  - integreatly.org
   resources:
   - blobstorages/status
   verbs:
@@ -27,85 +43,11 @@ rules:
   - patch
   - update
 - apiGroups:
-  - integreatly.integreatly.org
+  - monitoring.coreos.com
   resources:
-  - postgres
+  - prometheusrules
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - integreatly.integreatly.org
-  resources:
-  - postgres/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - integreatly.integreatly.org
-  resources:
-  - postgressnapshots
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - integreatly.integreatly.org
-  resources:
-  - postgressnapshots/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - integreatly.integreatly.org
-  resources:
-  - redis
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - integreatly.integreatly.org
-  resources:
-  - redis/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - integreatly.integreatly.org
-  resources:
-  - redissnapshots
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - integreatly.integreatly.org
-  resources:
-  - redissnapshots/status
-  verbs:
-  - get
-  - patch
-  - update
+  - '*'
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -128,7 +70,7 @@ rules:
   - services
   - services/finalizers
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - ""
   resources:
@@ -138,9 +80,9 @@ rules:
 - apiGroups:
   - apps
   resources:
-  - '''*'''
+  - '*'
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - apps
   resources:
@@ -149,7 +91,7 @@ rules:
   - replicasets
   - statefulsets
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - cloud-resource-operator
   resources:
@@ -161,11 +103,11 @@ rules:
   resources:
   - credentialsrequests
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - config.openshift.io
   resources:
-  - '''*'''
+  - '*'
   - authentications
   - builds
   - clusteroperators
@@ -175,30 +117,30 @@ rules:
   - networks
   - schedulers
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - integreatly
   resources:
-  - '''*'''
+  - '*'
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - integreatly.org
   resources:
-  - '''*'''
+  - '*'
   - postgres
   - postgressnapshots
   - redis
   - redissnapshots
   - smtpcredentialset
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - monitoring.coreos.com
   resources:
   - prometheusrules
   verbs:
-  - '''*'''
+  - '*'
 - apiGroups:
   - monitoring.coreos.com
   resources:

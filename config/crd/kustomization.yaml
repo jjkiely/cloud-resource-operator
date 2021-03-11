@@ -2,11 +2,11 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/integreatly.integreatly.org_blobstorages.yaml
-- bases/integreatly.integreatly.org_postgres.yaml
-- bases/integreatly.integreatly.org_postgressnapshots.yaml
-- bases/integreatly.integreatly.org_redis.yaml
-- bases/integreatly.integreatly.org_redissnapshots.yaml
+- bases/integreatly.org_blobstorages.yaml
+- bases/integreatly.org_postgres.yaml
+- bases/integreatly.org_postgressnapshots.yaml
+- bases/integreatly.org_redis.yaml
+- bases/integreatly.org_redissnapshots.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

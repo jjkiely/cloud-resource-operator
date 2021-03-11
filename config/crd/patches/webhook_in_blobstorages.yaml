@@ -3,7 +3,7 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: blobstorages.integreatly.integreatly.org
+  name: blobstorages.integreatly.org
 spec:
   conversion:
     strategy: Webhook

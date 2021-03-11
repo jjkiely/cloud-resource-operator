@@ -39,7 +39,7 @@ type RedisSnapshot struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisSnapshotSpec   `json:"spec,omitempty"`
+	Spec   RedisSnapshotSpec                `json:"spec,omitempty"`
 	Status types.ResourceTypeSnapshotStatus `json:"status,omitempty"`
 }
 

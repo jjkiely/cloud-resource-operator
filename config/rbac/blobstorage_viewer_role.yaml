@@ -5,7 +5,7 @@ metadata:
   name: blobstorage-viewer-role
 rules:
 - apiGroups:
-  - integreatly.integreatly.org
+  - integreatly.org
   resources:
   - blobstorages
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - integreatly.integreatly.org
+  - integreatly.org
   resources:
   - blobstorages/status
   verbs:

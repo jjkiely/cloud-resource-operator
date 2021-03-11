@@ -35,31 +35,38 @@ build:
 run:
 	RECTIME=30 WATCH_NAMESPACE=$(NAMESPACE) go run ./main.go
 
-PHONY: setup/service_account
+.PHONY: setup/service_account
 setup/service_account: kustomize
 	@-oc new-project $(NAMESPACE)
 	@oc project $(NAMESPACE)
 	@-oc create -f config/rbac/service_account.yaml -n $(NAMESPACE)
-	@$(KUSTOMIZE) build config/rbac-cloud-resource-operator | oc replace --force -f -	
-	@oc login --token=$(shell oc serviceaccounts get-token cloud-resource-operator -n ${NAMESPACE}) --server=$(shell sh -c "oc cluster-info | grep -Eo 'https?://[-a-zA-Z0-9\.:]*'") --kubeconfig=TMP_SA_KUBECONFIG --insecure-skip-tls-verify=true
-
+	@$(KUSTOMIZE) build config/rbac | oc replace --force -f -	
 
 .PHONY: code/run/service_account
-code/run/service_account: #setup/service_account
-	@oc login --token=$(shell oc serviceaccounts get-token cloud-resource-operator -n ${NAMESPACE})
+code/run/service_account: setup/service_account
+	@oc login --token=$(shell oc serviceaccounts get-token cloud-resource-operator -n ${NAMESPACE}) --server=$(shell sh -c "oc cluster-info | grep -Eo 'https?://[-a-zA-Z0-9\.:]*'") --kubeconfig=TMP_SA_KUBECONFIG --insecure-skip-tls-verify=true
 	WATCH_NAMESPACE=$(NAMESPACE) go run ./main.go
 
+.PHONY: code/gen
+code/gen: manifests kustomize generate
 
 
+## TODO -------------------------------------------------------------------------
+.PHONY: gen/csv
+gen/csv:
+	sed -i.bak 's/image:.*/image: quay\.io\/integreatly\/cloud-resource-operator:v$(VERSION)/g' config/manager/manager.yaml && rm config/manager/manager.yaml.bak
+	@$(OPERATOR_SDK) generate csv --operator-name=cloud-resources --csv-version $(VERSION) --from-version $(PREV_VERSION) --make-manifests=false --update-crds --csv-channel=integreatly --default-channel --verbose
+	@sed -i.bak 's/$(PREV_VERSION)/$(VERSION)/g' deploy/olm-catalog/cloud-resources/cloud-resources.package.yaml && rm deploy/olm-catalog/cloud-resources/cloud-resources.package.yaml.bak
+	@sed -i.bak s/cloud-resource-operator:v$(PREV_VERSION)/cloud-resource-operator:v$(VERSION)/g deploy/olm-catalog/cloud-resources/$(VERSION)/cloud-resources.v$(VERSION).clusterserviceversion.yaml && rm deploy/olm-catalog/cloud-resources/$(VERSION)/cloud-resources.v$(VERSION).clusterserviceversion.yaml.bak
 
-.PHONY: cluster/prepare/crd
-cluster/prepare/crd: kustomize
-	$(KUSTOMIZE) build config/crd | oc apply -f -
+.PHONY: code/fix
+code/fix:
+	@go mod tidy
+	@gofmt -w `find . -type f -name '*.go' -not -path "./vendor/*"`
 
 .PHONY: code/check
 code/check:
 	@diff -u <(echo -n) <(gofmt -d `find . -type f -name '*.go' -not -path "./vendor/*"`)
-
 
 .PHONY: vendor/fix
 vendor/fix:
@@ -69,6 +76,101 @@ vendor/fix:
 .PHONY: vendor/check
 vendor/check: vendor/fix
 	git diff --exit-code vendor/
+
+.PHONY: cluster/prepare
+cluster/prepare: kustomize
+	-oc new-project $(NAMESPACE) || true
+	-oc label namespace $(NAMESPACE) monitoring-key=middleware
+	$(KUSTOMIZE) build config/crd | oc apply -f -
+
+.PHONY: cluster/seed/workshop/blobstorage
+cluster/seed/workshop/blobstorage:
+	@cat config/samples/integreatly_v1alpha1_blobstorage.yaml | sed "s/type: REPLACE_ME/type: workshop/g" | oc apply -f - -n $(NAMESPACE)
+
+.PHONY: cluster/seed/managed/blobstorage
+cluster/seed/managed/blobstorage:
+	@cat config/samples/integreatly_v1alpha1_blobstorage.yaml | sed "s/type: REPLACE_ME/type: managed/g" | oc apply -f - -n $(NAMESPACE)
+
+.PHONY: cluster/seed/workshop/redis
+cluster/seed/workshop/redis:
+	@cat config/samples/integreatly_v1alpha1_redis.yaml | sed "s/type: REPLACE_ME/type: workshop/g" | oc apply -f - -n $(NAMESPACE)
+
+.PHONY: cluster/seed/managed/redis
+cluster/seed/managed/redis:
+	@cat config/samples/integreatly_v1alpha1_redis.yaml | sed "s/type: REPLACE_ME/type: managed/g" | oc apply -f - -n $(NAMESPACE)
+
+.PHONY: cluster/seed/workshop/postgres
+cluster/seed/workshop/postgres:
+	@cat config/samples/integreatly_v1alpha1_postgres.yaml | sed "s/type: REPLACE_ME/type: workshop/g" | oc apply -f - -n $(NAMESPACE)
+
+.PHONY: cluster/seed/managed/postgres
+cluster/seed/managed/postgres:
+	@cat config/samples/integreatly_v1alpha1_postgres.yaml | sed "s/type: REPLACE_ME/type: managed/g" | oc apply -f - -n $(NAMESPACE)
+
+.PHONY: cluster/clean
+cluster/clean:
+	@$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	@$(KUSTOMIZE) build config/rbac | oc delete --force -f -	
+	oc delete project $(NAMESPACE)
+
+.PHONY: test/unit/setup
+test/unit/setup:
+	@echo Installing gotest
+	go get -u github.com/rakyll/gotest
+
+.PHONY: test/unit
+test/unit:
+	@echo Running tests:
+	GO111MODULE=off go get -u github.com/rakyll/gotest
+	gotest -v -covermode=count -coverprofile=coverage.out ./pkg/providers/... ./pkg/resources/... ./apis/integreatly/v1alpha1/types/... ./pkg/client/...
+
+.PHONY: test/unit/coverage
+test/unit/coverage:
+	@echo Running the coverage cli and html
+	go tool cover -html=coverage.out
+	go tool cover -func=coverage.out
+
+.PHONY: test/unit/ci
+test/unit/ci: test/unit
+	@echo Removing mock file coverage
+	sed -i.bak '/_moq.go/d' coverage.out
+
+.PHONY: image/build
+image/build: build
+	echo "build image $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):$(VERSION)"
+	docker build . -t $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):$(VERSION)
+
+.PHONY: image/push
+image/push: image/build
+	docker push $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):$(VERSION)
+
+## TODO -----------------
+
+.PHONY: test/e2e/prow
+test/e2e/prow: cluster/prepare
+	@echo Running e2e tests:
+	GO111MODULE=on $(OPERATOR_SDK) test local ./test/e2e --up-local --namespace $(NAMESPACE) --go-test-flags "-timeout=60m -v"
+	oc delete project $(NAMESPACE)
+
+.PHONY: test/e2e/local
+test/e2e/local: cluster/prepare
+	@echo Running e2e tests:
+	$(OPERATOR_SDK) test local ./test/e2e --up-local --namespace $(NAMESPACE) --go-test-flags "-timeout=60m -v"
+	oc delete project $(NAMESPACE)
+
+.PHONY: test/e2e/image
+test/e2e/image:
+	@echo Running e2e tests:
+	$(OPERATOR_SDK) test local ./test/e2e --go-test-flags "-timeout=60m -v -parallel=2" --image $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):$(VERSION)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -153,14 +255,6 @@ vet:
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-
-# Build the docker image
-docker-build: test
-	docker build . -t ${IMG}
-
-# Push the docker image
-docker-push:
-	docker push ${IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary

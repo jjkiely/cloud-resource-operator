@@ -5,7 +5,7 @@ metadata:
   name: redissnapshot-editor-role
 rules:
 - apiGroups:
-  - integreatly.integreatly.org
+  - integreatly.org
   resources:
   - redissnapshots
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - integreatly.integreatly.org
+  - integreatly.org
   resources:
   - redissnapshots/status
   verbs:

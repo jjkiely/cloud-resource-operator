@@ -20,6 +20,7 @@ type SecretRef struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`
 }
+
 // +kubebuilder:object:generate=true
 type ResourceTypeSpec struct {
 	Type       string     `json:"type"`
@@ -38,6 +39,7 @@ func (sm StatusMessage) WrapError(err error) StatusMessage {
 	}
 	return StatusMessage(fmt.Sprintf("%s: %s", sm, err.Error()))
 }
+
 // +kubebuilder:object:generate=true
 type ResourceTypeStatus struct {
 	Strategy  string        `json:"strategy,omitempty"`

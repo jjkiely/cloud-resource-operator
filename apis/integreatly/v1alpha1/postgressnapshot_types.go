@@ -38,7 +38,7 @@ type PostgresSnapshot struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PostgresSnapshotSpec   `json:"spec,omitempty"`
+	Spec   PostgresSnapshotSpec             `json:"spec,omitempty"`
 	Status types.ResourceTypeSnapshotStatus `json:"status,omitempty"`
 }
 

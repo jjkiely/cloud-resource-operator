@@ -81,19 +81,27 @@ func (r *PostgresSnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups="",resources=pods;pods/exec;services;services/finalizers;endpoints;persistentVolumeclaims;events;configmaps;secrets,verbs='*',namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs='*',namespace=cloud-resource-operator
+// ClusterRole permissions
+
+// +kubebuilder:rbac:groups="config.openshift.io",resources=infrastructures;networks,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumes;configmaps,verbs="*"
+// +kubebuilder:rbac:groups="monitoring.coreos.com",resources=prometheusrules,verbs="*"
+
+// Role permissions
+
+// +kubebuilder:rbac:groups="",resources=pods;pods/exec;services;services/finalizers;endpoints;persistentVolumeclaims;events;configmaps;secrets,verbs="*",namespace=cloud-resource-operator
+// +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs="*",namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;create,namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="cloud-resource-operator",resources=deployments/finalizers,verbs=update,namespace=cloud-resource-operator
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get,namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups="apps",resources='*',verbs='*',namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups="integreatly",resources='*',verbs='*',namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups="integreatly.org",resources='*';smtpcredentialset;redis;postgres;redissnapshots;postgressnapshots,verbs='*',namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups="monitoring.coreos.com",resources=prometheusrules,verbs='*',namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups="config.openshift.io",resources='*';infrastructures;schedulers;featuregates;networks;ingresses;clusteroperators;authentications;builds,verbs='*',namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups="cloudcredential.openshift.io",resources=credentialsrequests,verbs='*',namespace=cloud-resource-operator
-// +kubebuilder:rbac:groups=integreatly.integreatly.org,resources=postgressnapshots,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=integreatly.integreatly.org,resources=postgressnapshots/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="apps",resources="*",verbs="*",namespace=cloud-resource-operator
+// +kubebuilder:rbac:groups="integreatly",resources="*",verbs="*",namespace=cloud-resource-operator
+// +kubebuilder:rbac:groups="integreatly.org",resources="*";smtpcredentialset;redis;postgres;redissnapshots;postgressnapshots,verbs="*",namespace=cloud-resource-operator
+// +kubebuilder:rbac:groups="monitoring.coreos.com",resources=prometheusrules,verbs="*",namespace=cloud-resource-operator
+// +kubebuilder:rbac:groups="config.openshift.io",resources="*";infrastructures;schedulers;featuregates;networks;ingresses;clusteroperators;authentications;builds,verbs="*",namespace=cloud-resource-operator
+// +kubebuilder:rbac:groups="cloudcredential.openshift.io",resources=credentialsrequests,verbs="*",namespace=cloud-resource-operator
+// +kubebuilder:rbac:groups=integreatly.org,resources=blobstorages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=integreatly.org,resources=blobstorages/status,verbs=get;update;patch
 
 func (r *PostgresSnapshotReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	r.logger.Info("reconciling postgres snapshot")

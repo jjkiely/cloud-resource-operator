@@ -9,10 +9,10 @@ import (
 	"reflect"
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	croType "github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/integr8ly/cloud-resource-operator/apis"
 	"github.com/integr8ly/cloud-resource-operator/apis/integreatly/v1alpha1"

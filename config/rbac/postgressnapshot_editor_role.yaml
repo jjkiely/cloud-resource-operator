@@ -5,7 +5,7 @@ metadata:
   name: postgressnapshot-editor-role
 rules:
 - apiGroups:
-  - integreatly.integreatly.org
+  - integreatly.org
   resources:
   - postgressnapshots
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - integreatly.integreatly.org
+  - integreatly.org
   resources:
   - postgressnapshots/status
   verbs:
