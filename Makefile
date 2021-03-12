@@ -1,5 +1,5 @@
 IMAGE_REG=quay.io
-IMAGE_ORG=mstoklus
+IMAGE_ORG=integreatly
 IMAGE_NAME=cloud-resource-operator
 MANIFEST_NAME=cloud-resources
 NAMESPACE=cloud-resource-operator
@@ -50,14 +50,18 @@ code/run/service_account: setup/service_account
 .PHONY: code/gen
 code/gen: manifests kustomize generate
 
-
-## TODO -------------------------------------------------------------------------
+# Make sure that the previous version and version values are set to correct values.
 .PHONY: gen/csv
 gen/csv:
-	sed -i.bak 's/image:.*/image: quay\.io\/integreatly\/cloud-resource-operator:v$(VERSION)/g' config/manager/manager.yaml && rm config/manager/manager.yaml.bak
-	@$(OPERATOR_SDK) generate csv --operator-name=cloud-resources --csv-version $(VERSION) --from-version $(PREV_VERSION) --make-manifests=false --update-crds --csv-channel=integreatly --default-channel --verbose
-	@sed -i.bak 's/$(PREV_VERSION)/$(VERSION)/g' deploy/olm-catalog/cloud-resources/cloud-resources.package.yaml && rm deploy/olm-catalog/cloud-resources/cloud-resources.package.yaml.bak
-	@sed -i.bak s/cloud-resource-operator:v$(PREV_VERSION)/cloud-resource-operator:v$(VERSION)/g deploy/olm-catalog/cloud-resources/$(VERSION)/cloud-resources.v$(VERSION).clusterserviceversion.yaml && rm deploy/olm-catalog/cloud-resources/$(VERSION)/cloud-resources.v$(VERSION).clusterserviceversion.yaml.bak
+	@$(KUSTOMIZE) build config/manifests | operator-sdk generate packagemanifests --kustomize-dir=config/manifests --output-dir packagemanifests/ --version ${VERSION} --default-channel --channel integreatly
+	@sed -i "s/Version = \"${PREV_VERSION}\"/Version = \"${VERSION}\"/g" version/version.go
+	@yq w -i "packagemanifests/${VERSION}/cloud-resource-operator.clusterserviceversion.yaml" metadata.annotations.containerImage $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):v$(VERSION)
+	@yq w -i "packagemanifests/${VERSION}/cloud-resource-operator.clusterserviceversion.yaml" metadata.name cloud-resources.v$(VERSION)
+	@yq w -i "packagemanifests/${VERSION}/cloud-resource-operator.clusterserviceversion.yaml" spec.install.spec.deployments[0].spec.template.spec.containers[0].image $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):v$(VERSION)
+	@yq w -i config/manifests/bases/cloud-resource-operator.clusterserviceversion.yaml metadata.name cloud-resources.v${VERSION}
+	@yq w -i config/manifests/bases/cloud-resource-operator.clusterserviceversion.yaml metadata.annotations.containerImage $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):v$(VERSION)
+	@yq w -i config/manifests/bases/cloud-resource-operator.clusterserviceversion.yaml spec.version ${VERSION}
+	@yq w -i config/manager/manager.yaml spec.template.spec.containers[0].image $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):v$(VERSION)
 
 .PHONY: code/fix
 code/fix:
@@ -163,49 +167,6 @@ test/e2e/image:
 	@echo Running e2e tests:
 	$(OPERATOR_SDK) test local ./test/e2e --go-test-flags "-timeout=60m -v -parallel=2" --image $(IMAGE_REG)/$(IMAGE_ORG)/$(IMAGE_NAME):$(VERSION)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Current Operator version
-VERSION ?= 0.0.1
-# Default bundle image tag
-BUNDLE_IMG ?= controller-bundle:$(VERSION)
-# Options for 'bundle-build'
-ifneq ($(origin CHANNELS), undefined)
-BUNDLE_CHANNELS := --channels=$(CHANNELS)
-endif
-ifneq ($(origin DEFAULT_CHANNEL), undefined)
-BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
-endif
-BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
-
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -213,44 +174,9 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: manager
-
-# Run tests
-ENVTEST_ASSETS_DIR = $(shell pwd)/testbin
-test: generate fmt vet manifests
-	mkdir -p $(ENVTEST_ASSETS_DIR)
-	test -f $(ENVTEST_ASSETS_DIR)/setup-envtest.sh || curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.6.3/hack/setup-envtest.sh
-	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
-
-# Build manager binary
-manager: generate fmt vet
-	go build -o bin/manager main.go
-
-
-# Install CRDs into a cluster
-install: manifests kustomize
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
-
-# Uninstall CRDs from a cluster
-uninstall: manifests kustomize
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
-
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests kustomize
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
-
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-
-# Run go fmt against code
-fmt:
-	go fmt ./...
-
-# Run go vet against code
-vet:
-	go vet ./...
 
 # Generate code
 generate: controller-gen
@@ -288,16 +214,6 @@ else
 KUSTOMIZE=$(shell which kustomize)
 endif
 
-# Generate bundle manifests and metadata, then validate generated files.
-.PHONY: bundle
-bundle: manifests kustomize
-	operator-sdk generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	operator-sdk bundle validate ./bundle
 
-# Build the bundle image.
-.PHONY: bundle-build
-bundle-build:
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
 
